@@ -35,9 +35,16 @@ private:
 //条件变量
 class Cond{
 public:
-
+    Cond(){
+        if(pthread_cond_init(&m_cond,NULL)!=0){
+            throw std::exception();
+        }
+    }
+    ~Cond(){
+        pthread_cond_destroy(&m_cond);
+    }
 private:
-
+    pthread_cond_t m_cond;
 };
 
 //Locker
