@@ -11,10 +11,9 @@ template <typename T>
 class Threadpool
 {
 public:
-    Threadpool(int actor_model,connection_pool *connPool,int m_thread_number=8, int max_request = 10000);
+    Threadpool(connection_pool *connPool,int m_thread_number=8, int max_request = 10000);
     ~Threadpool();
-    bool append(T* request,int state);
-    bool append_p(T* request);
+    bool append(T* request);
 
 private:
     static void* worker(void*);
@@ -28,14 +27,14 @@ private:
     std::list<T*> m_workqueue;//请求队列
     Locker m_queueLocker;//请求队列的互斥锁
     Sem m_queuestat;//是否有任务需要处理
-    int m_actor_model; //模型切换
+    bool m_stop; //是否结束线程
 };
 
 template <typename T>
-Threadpool<T>::Threadpool(int actor_model,connection_pool *connPool,
+Threadpool<T>::Threadpool(connection_pool *connPool,
 int thread_number, int max_requests):
-m_actor_model(actor_model),m_connPool(connPool),
-m_thread_number(thread_number),m_max_requests(max_requests)
+m_connPool(connPool),m_thread_number(thread_number),
+m_max_requests(max_requests),m_stop(false)
 {
     //用户输入的异常处理
     if(thread_number<=0||max_requests<=0){
@@ -47,7 +46,7 @@ m_thread_number(thread_number),m_max_requests(max_requests)
 
     //线程创建和分离
     for(int i=0;i<thread_number;i++){
-        
+        printf("%d\n",i+1);
         if(pthread_create(m_threads+i,NULL,worker,this)!=0){
             delete[] m_threads;
             throw std::exception();
@@ -63,28 +62,13 @@ template <typename T>
 Threadpool<T>::~Threadpool()
 {
     delete []m_threads;
+    m_stop = true;
 }
 
 
 template <typename T>
-bool Threadpool<T>::append(T* request,int state)
+bool Threadpool<T>::append(T* request)
 {
-    m_queueLocker.lock();
-    if(m_workqueue.size()>=m_max_requests){
-        m_queueLocker.unlock();//return之前一定要记得解锁
-        return false;
-    }
-    request->m_state=state;
-    m_workqueue.push_back(request);
-    m_queueLocker.unlock();
-    m_queuestat.post();//信号量要维护
-    return true;
-}
-
-template <typename T>
-bool Threadpool<T>::append_p(T* request)
-{
-    //先上锁
     m_queueLocker.lock();
     if(m_workqueue.size()>=m_max_requests){
         m_queueLocker.unlock();//return之前一定要记得解锁
@@ -99,7 +83,7 @@ bool Threadpool<T>::append_p(T* request)
 template <typename T>
 void Threadpool<T>::run()
 {
-    while(true){
+    while(!m_stop){
         //wait
         m_queuestat.wait();
         //上锁看请求队列
@@ -142,7 +126,6 @@ void Threadpool<T>::run()
 template <typename T>
 void* Threadpool<T>::worker(void* arg)
 {
-    //if(!arg) return;
     Threadpool *pool=(Threadpool*)arg;
     pool->run();
     return pool;
