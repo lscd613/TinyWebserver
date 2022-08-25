@@ -81,6 +81,15 @@ bool Threadpool<T>::append(T* request)
 }
 
 template <typename T>
+void* Threadpool<T>::worker(void* arg)
+{
+    Threadpool *pool=(Threadpool*)arg;
+    pool->run();
+    return pool;
+}
+
+
+template <typename T>
 void Threadpool<T>::run()
 {
     while(!m_stop){
@@ -93,43 +102,17 @@ void Threadpool<T>::run()
             continue;
         }
         T *request=m_workqueue.front();
+        m_workqueue.pop_front();
+        m_queueLocker.unlock();
         if(!request) continue;
-        // if(1 == m_actor_model){
-        //     if(0 == request->m_state){
-        //         if(request->read_once()){
-        //             request->improv=1;
-        //             connectionRAII mysqlcon(&request->mysql,m_connPool);
-        //             request->process();
-        //         }
-        //         else{
-        //             request->improv=1;
-        //             request->timer_flag=1;
-        //         }
-        //     }
-        //     else{
-        //         if(request->write()){
-        //             request->improv=1;
-        //         }
-        //         else{
-        //             request->improv=1;
-        //             request->timer_flag=1;
-        //         }
-        //     }
-        // }
-        // else{
-        //     connectionRAII mysqlcon(&request->mysql,m_connPool);
-        //     request->process();
-        // }
+        
+        connectionRAII mysqlcon(&request->mysql,m_connPool);
+        //request->process();
+
     }
 }
 
-template <typename T>
-void* Threadpool<T>::worker(void* arg)
-{
-    Threadpool *pool=(Threadpool*)arg;
-    pool->run();
-    return pool;
-}
+
 
 
 

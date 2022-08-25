@@ -1,13 +1,15 @@
 #ifndef HTTPCONNECTION_H
 #define HTTPCONNECTION_H
 #include <sys/socket.h>
+#include <sys/epoll.h>
 #include <arpa/inet.h>
 #include <stdarg.h>
 #include <sys/stat.h>
 #include <map>
 #include <string>
 #include "../CGImysql/sql_connection_pool.h"
-
+#include <fcntl.h>
+#include <unistd.h>
 
 class http_conn         
 {
@@ -46,18 +48,16 @@ public:
     };
 
 public:
-    http_conn(/* args */);
-    ~http_conn();
+    http_conn(){}
+    ~http_conn(){}
 
 public:
     //初始化套接字地址,要调用私有方法init -qa
     void init(int sockfd,const sockaddr_in &addr);
     //关闭连接，real_close的作用-qa
-    void close_conn(bool real_close=true);
+    void close_conn();
     //处理报文 -qa
     void process();
-
-
     bool read_once();
     bool write();
     sockaddr_in* get_address(){
@@ -70,7 +70,6 @@ public:
     void init_result_file(connection_pool *connPool);
 
 public:
-
     static int m_epollfd;
     static int m_user_count;
     MYSQL *mysql;

@@ -27,29 +27,29 @@ string DataBaseName, int Port, unsigned int MaxConn) {
     this->DatabaseName = DataBaseName;
     this->Port = Port;
 
-    locker.lock();
-    for (int i = 0; i < MaxConn; i++) {
-        MYSQL *con = NULL;
-        con = mysql_init(con);
-        if (con == NULL) {
-            cout << "Error:" << mysql_error(con);
-            exit(1);
-        }
+    // locker.lock();
+    // for (int i = 0; i < MaxConn; i++) {
+    //     MYSQL *con = NULL;
+    //     con = mysql_init(con);
+    //     if (con == NULL) {
+    //         cout << "Error:" << mysql_error(con);
+    //         exit(1);
+    //     }
 
-        con = mysql_real_connect(con, url.c_str(), User.c_str(), PassWord.c_str(), 
-        DatabaseName.c_str(), Port, NULL, 0);
+    //     con = mysql_real_connect(con, url.c_str(), User.c_str(), PassWord.c_str(), 
+    //     DatabaseName.c_str(), Port, NULL, 0);
 
-        if (con == NULL) {
-            cout << "Error:" << mysql_error(con);
-            exit(1);
-        }
-        connList.push_back(con);
-        ++FreeConn;
-    }
-    reserve = Sem(FreeConn);
+    //     if (con == NULL) {
+    //         cout << "Error:" << mysql_error(con);
+    //         exit(1);
+    //     }
+    //     connList.push_back(con);
+    //     ++FreeConn;
+    // }
+    // reserve = Sem(FreeConn);
 
-    this->MaxConn = FreeConn;
-    locker.unlock();
+    // this->MaxConn = FreeConn;
+    // locker.unlock();
 }
 
 MYSQL* connection_pool::GetConnection() {
