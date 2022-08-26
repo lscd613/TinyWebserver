@@ -58,28 +58,26 @@ bool http_conn::write() {
 }
 
 bool http_conn::read_once() {
-    // //异常
-    // if (m_read_idx >= READ_BUFFER_SIZE) {
-    //     return false;
-    // }
-    // //一直读取直到没有数据可读
-    // int bytes_read = 0;
-    // while (true) {
-    //     bytes_read = recv(m_sockfd, m_read_buf + m_read_idx, READ_BUFFER_SIZE-m_read_idx, 0);
-    //     if (bytes_read == -1) {
-    //         if (errno == EAGAIN || errno == EWOULDBLOCK) {
-    //             break;
-    //         }
-    //         return false;
-    //     }
-    //     //对方关闭连接
-    //     else if (bytes_read == 0) {
-    //         return false;
-    //     }
-    //     m_read_idx += bytes_read;
-    // }
-    // return true;
-    printf("写数据\n");
+    //异常
+    if (m_read_idx >= READ_BUFFER_SIZE) {
+        return false;
+    }
+    //一直读取直到没有数据可读
+    int bytes_read = 0;
+    while (true) {
+        bytes_read = recv(m_sockfd, m_read_buf + m_read_idx, READ_BUFFER_SIZE-m_read_idx, 0);
+        if (bytes_read == -1) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                break;
+            }
+            return false;
+        }
+        //对方关闭连接
+        else if (bytes_read == 0) {
+            return false;
+        }
+        m_read_idx += bytes_read;
+    }
     return true;
 }
 
@@ -97,9 +95,79 @@ void http_conn::init(int sockfd, const sockaddr_in &addr) {
 }
 
 void http_conn::close_conn() {
+
     if (m_sockfd != -1) {
         removefd(m_epollfd, m_sockfd);
         m_sockfd = -1;
         m_user_count--;
     }
 }
+
+void http_conn::process() {
+    HTTP_CODE read_ret = process_read();
+    //请求不完整
+    if (read_ret == NO_REQUEST) {
+        //修改为读事件
+        modfd(m_epollfd, m_sockfd, EPOLLIN);
+        return;
+    }
+    //调用process_write完成报文响应
+    bool write_ret = process_write(read_ret);
+    if (write_ret) {
+        close_conn();
+    }
+    //修改为写事件
+    modfd(m_epollfd, m_sockfd, EPOLLOUT);
+}
+
+http_conn::HTTP_CODE http_conn::process_read() {
+     LINE_STATUS line_status = LINE_OK;
+     HTTP_CODE ret = NO_REQUEST;
+     char* text = NULL;
+    while((line_status = parse_line()) == LINE_OK
+    || (m_check_state == CHECK_STATE_CONTENT && line_status == LINE_OK)) {
+        text = get_line();
+        m_start_line = m_checked_idx;
+
+        switch (m_check_state)
+        {
+        case CHECK_STATE_REQUESTLINE:
+        {
+            ret = parse_request_line(text);
+            if (ret == BAD_REQUEST) {
+                return BAD_REQUEST;
+            }
+            break;
+        }
+        case CHECK_STATE_HEADER:
+        {
+            ret = parse_header(text);
+            if (ret == BAD_REQUEST) {
+                return BAD_REQUEST;
+            }
+            else if (ret==GET_REQUEST){
+                return do_request();
+            }
+            break;
+        }
+        case CHECK_STATE_CONTENT:
+        {
+            ret = parse_content(text);
+            if (ret==GET_REQUEST){
+                return do_request();
+            }
+            line_status = LINE_OPEN;
+            break;
+        }    
+        default:
+            return INTERNAL_ERROR;
+        }
+    }
+    return NO_REQUEST;
+}
+
+
+
+
+
+
