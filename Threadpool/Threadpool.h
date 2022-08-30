@@ -107,7 +107,7 @@ void Threadpool<T>::run()
         if(!request) continue;
         
         connectionRAII mysqlcon(&request->mysql,m_connPool);
-        //request->process();
+        request->process();
 
     }
 }
