@@ -16,7 +16,7 @@ const char *error_500_form = "There was an unusual problem serving the request f
 int http_conn::m_epollfd = -1;
 int http_conn::m_user_count = 0;
 
-const char* doc_root="/home/lighthouse/FayeRingo/root";
+const char* doc_root="/home/lighthouse/FayeRingo/TinyWebserver/root";
 
 //需要设置socket非阻塞，不然碰到无数据可读的时候就会一直阻塞
 //核心函数fcntl
@@ -116,7 +116,7 @@ void http_conn::process() {
     }
     //调用process_write完成报文响应
     bool write_ret = process_write(read_ret);
-    if (write_ret) {
+    if (!write_ret) {
         close_conn();
     }
     //修改为写事件
@@ -179,8 +179,8 @@ http_conn::LINE_STATUS http_conn::parse_line() {
                 return LINE_OPEN;
             } 
             else if (m_read_buf[m_checked_idx + 1] == '\n') {
-                m_read_buf[m_checked_idx] = '\0';
-                m_read_buf[m_checked_idx + 1] = '\0';
+                m_read_buf[m_checked_idx++] = '\0';
+                m_read_buf[m_checked_idx++] = '\0';
                 return LINE_OK;
             }
             return LINE_BAD;
@@ -189,6 +189,7 @@ http_conn::LINE_STATUS http_conn::parse_line() {
             if (m_checked_idx > 1 && m_read_buf[m_checked_idx - 1] == '\r') {
                 m_read_buf[m_checked_idx - 1] = '\0';
                 m_read_buf[m_checked_idx++] = '\0';
+                
                 return LINE_OK;
             }
             return LINE_BAD;
@@ -201,8 +202,6 @@ void http_conn::init() {
     m_start_line = 0;
     m_read_idx = 0;
 }
-
-
 
 http_conn::HTTP_CODE http_conn::parse_request_line(char* text) {
     //各个部分之间通过\t或空格分隔

@@ -110,7 +110,7 @@ int main(int argc, char *argv[]){
                 printf("有连接加入\n");
             } else if (events[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR)) {
                 //对方异常断开或者错误事件
-                users[sockfd].close_conn();   
+                users[sockfd].close_conn();
             }
             //读事件 
             else if (events[i].events & EPOLLIN){
